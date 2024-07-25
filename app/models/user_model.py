@@ -1,8 +1,7 @@
 import datetime
-import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, text
+from sqlalchemy import text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -21,7 +20,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(nullable=False, default="user")
     is_active: Mapped[bool] = mapped_column(nullable=False, default=False)
 
-    notes: Mapped[list["Note"]] = relationship("Note", back_populates="owner")
+    notes: Mapped[list["Note"]] = relationship(
+        "Note", back_populates="owner", lazy="select"
+    )
 
     created_at: Mapped[datetime.datetime] = mapped_column(
         server_default=text("TIMEZONE('utc', now())")
