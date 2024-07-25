@@ -1,18 +1,17 @@
-import time
-
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.models.note_model import Note
 from app.models.user_model import User
-from app.repos import NoteRepository
+from app.schemas.note_schema import NoteCreate, NoteUpdate
+from app.services import NoteService
 
 DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/testdb"
 
 
 @pytest.fixture
 async def engine():
-    engine = create_async_engine(DATABASE_URL)
+    engine = create_async_engine(DATABASE_URL, echo=True)
 
     async with engine.begin() as conn:
         await conn.run_sync(User.metadata.create_all)
@@ -34,8 +33,13 @@ async def async_session(engine):
         await session.close()
 
 
+@pytest.fixture
+def note_service(async_session):
+    return NoteService(session=async_session)
+
+
 @pytest.mark.asyncio
-async def test_create_note(async_session):
+async def test_create_note(note_service, async_session):
     user = User(
         email="test@example.com",
         username="testuser",
@@ -46,20 +50,20 @@ async def test_create_note(async_session):
     async_session.add(user)
     await async_session.commit()
 
-    note_repo = NoteRepository(async_session)
+    note_data = NoteCreate(
+        title="Test Note", content="This is a test note.", owner_id=user.id
+    )
 
-    note = Note(title="Test Note", content="This is a test note.", owner_id=user.id)
+    note = await note_service.create_note(note_data)
 
-    created_note = await note_repo.create_note(note)
-
-    assert created_note.id is not None
-    assert created_note.title == "Test Note"
-    assert created_note.content == "This is a test note."
-    assert created_note.owner_id == user.id
+    assert note.id is not None
+    assert note.title == "Test Note"
+    assert note.content == "This is a test note."
+    assert note.owner_id == user.id
 
 
 @pytest.mark.asyncio
-async def test_get_note(async_session):
+async def test_get_note(note_service, async_session):
     user = User(
         email="test@example.com",
         username="testuser",
@@ -70,12 +74,11 @@ async def test_get_note(async_session):
     async_session.add(user)
     await async_session.commit()
 
-    note_repo = NoteRepository(async_session)
-
     note = Note(title="Test Note", content="This is a test note.", owner_id=user.id)
-    await note_repo.create_note(note)
+    async_session.add(note)
+    await async_session.commit()
 
-    fetched_note = await note_repo.get_note(note.id)
+    fetched_note = await note_service.get_note(note.id)
 
     assert fetched_note is not None
     assert fetched_note.title == "Test Note"
@@ -83,39 +86,7 @@ async def test_get_note(async_session):
 
 
 @pytest.mark.asyncio
-async def test_get_notes_by_user_id(async_session):
-    user = User(
-        email="test@example.com",
-        username="testuser",
-        hashed_password="hashedpassword",
-        role="user",
-        is_active=True,
-    )
-
-    print(user.id)
-    async_session.add(user)
-    await async_session.commit()
-
-    note_repo = NoteRepository(async_session)
-
-    note1 = Note(
-        title="Test Note 1", content="This is the first test note.", owner_id=user.id
-    )
-    note2 = Note(
-        title="Test Note 2", content="This is the second test note.", owner_id=user.id
-    )
-    await note_repo.create_note(note1)
-    await note_repo.create_note(note2)
-
-    notes = await note_repo.get_notes_by_user_id(user.id)
-
-    assert len(notes) == 2
-    assert any(note.title == "Test Note 1" for note in notes)
-    assert any(note.title == "Test Note 2" for note in notes)
-
-
-@pytest.mark.asyncio
-async def test_update_note(async_session):
+async def test_update_note(note_service, async_session):
     user = User(
         email="test@example.com",
         username="testuser",
@@ -125,22 +96,21 @@ async def test_update_note(async_session):
     )
     async_session.add(user)
     await async_session.commit()
-
-    note_repo = NoteRepository(async_session)
 
     note = Note(title="Old Title", content="Old content.", owner_id=user.id)
-    created_note = await note_repo.create_note(note)
+    async_session.add(note)
+    await async_session.commit()
 
-    created_note.title = "Updated Title"
-    created_note.content = "Updated content."
-    updated_note = await note_repo.update_note(created_note)
+    note_data = NoteUpdate(title="Updated Title")
+
+    updated_note = await note_service.update_note(note.id, note_data)
 
     assert updated_note.title == "Updated Title"
-    assert updated_note.content == "Updated content."
+    assert updated_note.content == "Old content."
 
 
 @pytest.mark.asyncio
-async def test_delete_note(async_session):
+async def test_delete_note(note_service, async_session):
     user = User(
         email="test@example.com",
         username="testuser",
@@ -150,15 +120,15 @@ async def test_delete_note(async_session):
     )
     async_session.add(user)
     await async_session.commit()
-
-    note_repo = NoteRepository(async_session)
 
     note = Note(
         title="Note to Delete", content="This note will be deleted.", owner_id=user.id
     )
-    created_note = await note_repo.create_note(note)
+    async_session.add(note)
+    await async_session.commit()
 
-    await note_repo.delete_note(created_note)
+    result = await note_service.delete_note(note.id)
 
-    fetched_note = await note_repo.get_note(created_note.id)
+    assert result is True
+    fetched_note = await note_service.get_note(note.id)
     assert fetched_note is None

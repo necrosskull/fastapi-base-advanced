@@ -21,9 +21,6 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     REFRESH_TOKEN_EXPIRE_DAYS: int
 
-    class Config:
-        env_file = ".env"
-
 
 @lru_cache
 def get_settings() -> Settings:
@@ -36,3 +33,8 @@ settings: Settings = get_settings()
 @lru_cache
 def get_db_url(engine: str) -> str:
     return f"postgresql+{engine}://{settings.db_user}:{settings.db_password}@{settings.db_host}:{settings.db_port}/{settings.db_name}"
+
+
+@lru_cache
+def get_test_db_url(engine: str) -> str:
+    return f"postgresql+{engine}://{settings.db_user}:{settings.db_password}@{settings.db_host}:{settings.db_port}/{settings.db_name}_test"
