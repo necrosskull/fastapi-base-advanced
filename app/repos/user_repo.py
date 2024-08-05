@@ -1,11 +1,13 @@
 from typing import Annotated
 
 from fastapi import Depends
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import lazyload
 
 from app.database.db import get_session
+from app.errors import UniqueException
 from app.models.user_model import User
 
 
@@ -28,7 +30,14 @@ class UserRepository:
 
     async def create_user(self, user: User) -> User:
         self.session.add(user)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except IntegrityError as e:
+            await self.session.rollback()
+            raise UniqueException(
+                "User with this email or username already exists",
+                extra_info={"detail": str(e._message())},
+            ) from e
         await self.session.refresh(user)
         return user
 

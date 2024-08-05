@@ -1,5 +1,3 @@
-import time
-
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -92,7 +90,6 @@ async def test_get_notes_by_user_id(async_session):
         is_active=True,
     )
 
-    print(user.id)
     async_session.add(user)
     await async_session.commit()
 

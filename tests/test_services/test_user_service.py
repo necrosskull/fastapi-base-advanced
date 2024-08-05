@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.models.user_model import User
+from app.repos.user_repo import UserRepository
 from app.schemas.user_schema import UserCreate, UserRole, UserUpdate
 from app.services.user_service import UserService
 
@@ -33,8 +34,13 @@ async def async_session(engine):
 
 
 @pytest.fixture
-def user_service(async_session):
-    return UserService(session=async_session)
+def user_repo(async_session):
+    return UserRepository(async_session)
+
+
+@pytest.fixture
+def user_service(user_repo):
+    return UserService(user_repo)
 
 
 @pytest.mark.asyncio

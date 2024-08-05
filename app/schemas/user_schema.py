@@ -31,8 +31,8 @@ class UserRead(BaseModel):
     id: int
     email: EmailStr
     username: str
-    role: str
+    role: UserRole
     is_active: bool
-    notes: list["NoteRead"] | None = None
+    # notes: list["NoteRead"] | None = None
     created_at: datetime.datetime
     updated_at: datetime.datetime

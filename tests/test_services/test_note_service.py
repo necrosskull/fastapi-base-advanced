@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.models.note_model import Note
 from app.models.user_model import User
+from app.repos.note_repo import NoteRepository
 from app.schemas.note_schema import NoteCreate, NoteUpdate
 from app.services import NoteService
 
@@ -34,8 +35,13 @@ async def async_session(engine):
 
 
 @pytest.fixture
-def note_service(async_session):
-    return NoteService(session=async_session)
+def note_repo(async_session):
+    return NoteRepository(async_session)
+
+
+@pytest.fixture
+def note_service(note_repo):
+    return NoteService(note_repo)
 
 
 @pytest.mark.asyncio
